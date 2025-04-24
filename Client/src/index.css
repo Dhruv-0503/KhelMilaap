@@ -1,0 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Moon+Dance&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rowdies:wght@300;400;700&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --font-roboto: "Roboto Slab";
+  --font-moon: "Moon Dance";
+  --font-rowdies : "Rowdies";
+}
+
+body{
+  background-color : #386188;
+}
+
+button{
+  cursor : pointer;
+}
