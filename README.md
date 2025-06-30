@@ -8,10 +8,9 @@ KhelMilaap is a dynamic and interactive full-stack web application designed to b
 -   **Profile Management**: Users can create and manage their profiles, showcasing their skills, sports, and achievements.
 -   **Social Connectivity**: Follow and unfollow other users to build a network of sports connections.
 -   **Real-time Chat**:
-    -   One-on-one private messaging with other users.
+    -   One-on-one private messaging with other users and coach.
     -   Group chats within communities.
-    -   Emoji support to make conversations more expressive.
-    -   Real-time updates without message duplication.
+    -   Real-time updates.
 -   **Community Hub**: Create and join communities based on specific sports or interests.
 -   **Interactive Dashboard**: A personalized dashboard showing user stats, including a unique count of friends (followers and following), posts, and upcoming events.
 -   **Player & Coach Discovery**: Easily search for and connect with players and coaches.
