@@ -14,18 +14,12 @@ const CoachSchema = new mongoose.Schema(
             type: String,
             default: "defaultCoach.png"
         },
-        fees: {
-            type : Number,
-            default : 0
-        },
+        
         sport: {
             type: String,
             required: true
         },
-        experience: {
-            type: Number,
-            required: true
-        },
+        
         status: {
             type: Boolean,  // Yes : Available & No : Not Available
             default: true

@@ -63,7 +63,7 @@ const SportEvent = () => {
 
   return (
     <div className="font-roboto relative w-full overflow-hidden py-10">
-      <p className="text-4xl text-gray-300 sm:text-5xl font-roboto font-bold text-center mb-6 pb-2">Upcoming Events</p>
+      <p className="text-4xl text-gray-100 sm:text-5xl font-roboto font-bold text-center mb-6 pb-2">Upcoming Events</p>
 
       {/* Carousel */}
       <motion.div

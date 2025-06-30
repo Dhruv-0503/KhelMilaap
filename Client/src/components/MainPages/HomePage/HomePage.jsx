@@ -1,5 +1,5 @@
-import React from 'react';
 import 'animate.css'
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { HeroParallax } from '../../ui/HomePageUI/HeroParallax';
 import SparklesText from '../../ui/HomePageUI/SparklesText';
@@ -25,7 +25,24 @@ const HomePage = () => {
     }
   }
 
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() =>{
+    const token = localStorage.getItem('token');
+    if (token) {
+      setIsLoggedIn(true);
+    }
+  },[])
+
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigate('/dashboard');
+    }
+  })
+
   return (
+    
     <div className='home-main flex flex-col justify-center items-center w-full'>
 
       <div className="w-full h-[300px] md:h-[500px] lg:h-screen flex bg-[url('/assets/images/mainPageBG.jpg')] bg-cover bg-center flex-col justify-start items-start relative overflow-hidden">

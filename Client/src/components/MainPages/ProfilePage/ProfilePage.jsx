@@ -2,40 +2,63 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FiLogOut } from "react-icons/fi";
-import { FaUserCircle, FaUsers, FaImages, FaEdit, FaFacebook, FaInstagram, FaTwitter, FaMedal, FaPlus, FaTimes, FaTrash } from "react-icons/fa";
+import { FaUserCircle, FaUsers, FaImages, FaEdit, FaFacebook, FaInstagram, FaMedal, FaPlus, FaTimes, FaTrash } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
 import { GiAmericanFootballPlayer } from "react-icons/gi";
 import axios from '../../../utils/axios';
 import ProfileSkeleton from './ProfileSkeleton';
+import ProfileViewModal from './ProfileViewModal';
 
 const ProfilePage = () => {
+
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState(null);
   const [selectedTab, setSelectedTab] = useState("bio");
   const [selectedImage, setSelectedImage] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-
-  const navigate = useNavigate();
-
-  const handlelogout = () => {
-
-    localStorage.clear();
-    navigate('/login');
-
-  };
-
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const userId = localStorage.getItem('userId');
+  const [showFollowListModal, setShowFollowListModal] = useState(false);
+  const [followListTitle, setFollowListTitle] = useState('');
+  const [followListData, setFollowListData] = useState([]);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [selectedUserIdForModal, setSelectedUserIdForModal] = useState(null);
 
   useEffect(() => {
+    const storedUserId = localStorage.getItem('userId');
+    if (!storedUserId) {
+      navigate('/login');
+    } else {
+      setUserId(storedUserId);
+    }
+  }, [navigate]);
+
+
+  useEffect(() => {
+    if (!userId) return;  // Don't fetch if no userId yet
+
+    // Use profile from localStorage first for instant UI
+    const storedProfile = localStorage.getItem('profile');
+    if (storedProfile) {
+      setProfile(JSON.parse(storedProfile));
+      setLoading(false);
+    }
+
+    // Then fetch fresh profile from server (optional, for up-to-date info)
     const fetchProfile = async () => {
       try {
         const res = await axios.get(`/users/profile/${userId}`);
         setProfile(res.data);
+        localStorage.setItem('profile', JSON.stringify(res.data));
+        const avatarUrl = res.data.avatar;
+        localStorage.setItem('avatar', avatarUrl);
       } catch (err) {
         console.error('Failed to fetch profile:', err.response?.data || err.message);
       } finally {
         setLoading(false);
       }
     };
+
     fetchProfile();
   }, [userId]);
 
@@ -57,8 +80,6 @@ const ProfilePage = () => {
       });
 
       const { imageUrl, images: updatedImages } = res.data;
-
-      console.log("Uploaded image URL:", imageUrl);
 
       setProfile((prev) => ({
         ...prev,
@@ -89,6 +110,11 @@ const ProfilePage = () => {
     if (e.target.facebook.value) updatedProfile.facebook = e.target.facebook.value;
     if (e.target.instagram.value) updatedProfile.instagram = e.target.instagram.value;
     if (e.target.twitter.value) updatedProfile.twitter = e.target.twitter.value;
+    if (profile.role === 'Coach') {
+      if (e.target.experience.value) updatedProfile.experience = e.target.experience.value;
+      if (e.target.fees.value) updatedProfile.fees = e.target.fees.value;
+      if (e.target.status) updatedProfile.status = e.target.status.value;
+    }
     if (sports.length > 0) updatedProfile.sports = sports;  // If sports are selected
 
     // Ensure achievements are being sent as an array
@@ -109,7 +135,6 @@ const ProfilePage = () => {
     if (avatarFile) {
       formData.append('avatar', avatarFile);
     }
-
     try {
       const token = localStorage.getItem('token');
       const userId = profile?.userId;
@@ -162,13 +187,38 @@ const ProfilePage = () => {
     }
   }
 
+  const handlelogout = () => {
+    localStorage.clear();
+    setProfile(null);
+    window.location.href = '/login';
+  };
+
   const sections = [
     { id: "bio", label: "Bio", icon: <FaUserCircle /> },
     { id: "posts", label: "Posts", icon: <FaImages /> },
     { id: "community", label: "Community", icon: <FaUsers /> },
-    { id: "coaches", label: "Coaches", icon: <GiAmericanFootballPlayer /> },
-
+    profile?.role === "Coach"
+      ? { id: "trainees", label: "Trainees", icon: <GiAmericanFootballPlayer /> }
+      : { id: "coaches", label: "Coaches", icon: <GiAmericanFootballPlayer /> },
   ];
+
+  const handleShowFollowers = () => {
+    setFollowListTitle('Followers');
+    setFollowListData(profile.followers);
+    setShowFollowListModal(true);
+  };
+
+  const handleShowFollowing = () => {
+    setFollowListTitle('Following');
+    setFollowListData(profile.following);
+    setShowFollowListModal(true);
+  };
+
+  const handleUserItemClick = (userId) => {
+    setShowFollowListModal(false);
+    setSelectedUserIdForModal(userId);
+    setShowProfileModal(true);
+  };
 
   if (loading || !profile) {
     return <ProfileSkeleton />
@@ -191,41 +241,40 @@ const ProfilePage = () => {
             className="w-23 h-23 rounded-full border-4 border-indigo-500 shadow-lg"
           />
           <div className="md:ml-6 flex flex-col gap-2">
-            <h2 className="text-xl mt-2 md:mb-0 md:mt-0 md:text-xl lg:text-2xl font-bold text-gray-800">{profile.name}</h2>
+            <h2 className="text-xl md:mb-0 md:mt-0 md:text-xl lg:text-2xl font-bold text-gray-800">{profile.name}</h2>
 
             <div className="gap-5 lg:gap-10 flex ">
-              <Link to='#' className="flex flex-col justify-center items-center hover:text-blue-500">
+              <button onClick={handleShowFollowers} className="flex flex-col justify-center items-center hover:text-blue-500">
                 <div className="flex gap-1 justify-center items-center">
                   <FaUsers />
                   <p>Followers</p>
                 </div>
                 <p>{profile.followers.length}</p>
-              </Link>
-              <Link to='#' className="flex flex-col justify-center items-center hover:text-blue-500">
+              </button>
+              <button onClick={handleShowFollowing} className="flex flex-col justify-center items-center hover:text-blue-500">
                 <div className="flex gap-1 justify-center items-center">
                   <FaUsers />
                   <p>Following</p>
                 </div>
                 <p>{profile.following.length}</p>
-              </Link>
+              </button>
             </div>
           </div>
         </div>
 
         {/* Logout Button */}
         <motion.button
-          whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           onClick={handlelogout}
-          className="hidden sm:block md:flex mt-2 md:mt-0  items-center md:gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition"
+          className="hidden sm:block sm:flex mt-2 md:mt-0  items-center md:gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition"
         >
           <FiLogOut /> Logout
         </motion.button>
-        <button onClick={handlelogout} className="sm:hidden text-2xl w-30 h-30 absolute -top-8 -right-20">
-          <FiLogOut/>
+        <button onClick={handlelogout} className="sm:hidden text-2xl">
+          <FiLogOut />
         </button>
       </motion.div>
-      
+
 
       <div className="mt-6 gap-2 flex flex-col md:flex-row">
 
@@ -233,14 +282,14 @@ const ProfilePage = () => {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
-          className="flex md:flex-col gap-4 md:w-1/4 bg-white p-4 rounded-xl shadow-md"
+          className="flex px-1 md:flex-col gap-4 md:w-1/4 bg-white p-4 rounded-xl shadow-md"
         >
           {sections.map((section) => (
             <motion.button
               key={section.id}
               onClick={() => setSelectedTab(section.id)}
-              whileHover={{ scale: 1.1 }}
-              className={`flex py-1 flex-wrap items-center gap-2 px-3 sm:py-2 w-full rounded-lg text-lg transition-all ${selectedTab === section.id
+              whileHover={{ scale: 1.02 }}
+              className={`flex py-1 items-center gap-2 px-3 sm:py-2 w-full rounded-lg text-lg transition-all ${selectedTab === section.id
                 ? "bg-indigo-500 text-white"
                 : "hover:bg-gray-200"
                 }`}
@@ -272,6 +321,16 @@ const ProfilePage = () => {
                   <p className="text-gray-800">
                     <span className="font-semibold text-gray-900">Location :</span> {profile.location}
                   </p>
+                  {profile.role === "Coach" && (
+                    <>
+                      <p className="text-gray-800">
+                        <span className="font-semibold text-gray-900">Experience :</span> {profile.experience} Years
+                      </p>
+                      <p className="text-gray-800">
+                        <span className="font-semibold text-gray-900">Fees :</span> Rs. {profile.fees}/month
+                      </p>
+                    </>
+                  )}
                 </div>
                 <h3 className="text-2xl font-semibold mb-5 border-b-1">Achievements</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
@@ -297,7 +356,7 @@ const ProfilePage = () => {
                 <div className="flex gap-5 pl-1">
                   <a href={profile.socialLinks.facebook} target="_blank" className="text-3xl text-blue-900"><FaFacebook /></a>
                   <a href={profile.socialLinks.instagram} target="_blank" className="text-3xl text-orange-700"><FaInstagram /></a>
-                  <a href={profile.socialLinks.twitter} target="_blank" className="text-3xl text-blue-400"><FaTwitter /></a>
+                  <a href={profile.socialLinks.twitter} target="_blank" className="text-3xl text-black"><FaXTwitter/></a>
                 </div>
               </div>
               <div>
@@ -343,17 +402,49 @@ const ProfilePage = () => {
                       { label: "Facebook", id: "facebook", type: "url", value: profile?.facebook },
                       { label: "Instagram", id: "instagram", type: "url", value: profile?.instagram },
                       { label: "Twitter", id: "twitter", type: "url", value: profile?.twitter },
+                      {
+                        label: "Profile",
+                        id: "status",
+                        type: "radio",
+                        value: profile?.status === "Yes" ? true : false, // Convert "Yes"/"No" to boolean
+                        options: [
+                          { label: "Public", value: "Yes" },   // Available stores "Yes"
+                          { label: "Private", value: "No" }  // Not Available stores "No"
+                        ]
+                      },
+                      ...(profile?.role === "Coach" ? [
+                        { label: "Experience", id: "experience", type: "text", value: profile?.experience },
+                        { label: "Fees", id: "fees", type: "number", value: profile?.fees },
+                      ] : [])
                     ].map((field) => (
                       <div key={field.id} className="flex items-center">
                         <label htmlFor={field.id} className="w-32 text-sm text-gray-600 font-medium">
                           {field.label}
                         </label>
-                        <input
-                          type={field.type}
-                          id={field.id}
-                          defaultValue={field.value}
-                          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        />
+                        {field.type === "radio" ? (
+                          <div className="flex space-x-4">
+                            {field.options.map((option) => (
+                              <label key={option.value} className="flex items-center">
+                                <input
+                                  type="radio"
+                                  id={field.id}
+                                  name={field.id} // Group the radio buttons together
+                                  value={option.value}
+                                  defaultChecked={profile?.status === option.value} // Check the corresponding option based on profile status
+                                  className="mr-2"
+                                />
+                                {option.label}
+                              </label>
+                            ))}
+                          </div>
+                        ) : (
+                          <input
+                            type={field.type}
+                            id={field.id}
+                            defaultValue={field.value}
+                            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        )}
                       </div>
                     ))}
 
@@ -396,78 +487,78 @@ const ProfilePage = () => {
 
                     {/* Achievements Section */}
                     <div className="flex items-start gap-8 sm:gap-0">
-  <label htmlFor="achievements" className="w-32 text-sm text-gray-600 font-medium pt-2">
-    Achievements
-  </label>
-  <div className="flex-1 flex flex-col gap-2">
-    {achievements.map((achieve, index) => (
-      <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-2">
-        <input
-          type="text"
-          placeholder="Title"
-          value={achieve.title}
-          onChange={(e) => {
-            const updated = [...achievements];
-            updated[index].title = e.target.value;
-            setAchievements(updated);
-          }}
-          className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm"
-        />
-        <input
-          type="text"
-          placeholder="Year"
-          value={achieve.year}
-          onChange={(e) => {
-            const updated = [...achievements];
-            updated[index].year = e.target.value;
-            setAchievements(updated);
-          }}
-          className="w-full sm:w-24 border border-gray-300 rounded px-2 py-1 text-sm"
-        />
-        <button
-          type="button"
-          onClick={() => {
-            const updated = achievements.filter((_, i) => i !== index);
-            setAchievements(updated);
-          }}
-          className="text-red-500 text-sm"
-        >
-          &times;
-        </button>
-      </div>
-    ))}
+                      <label htmlFor="achievements" className="w-32 text-sm text-gray-600 font-medium pt-2">
+                        Achievements
+                      </label>
+                      <div className="flex-1 flex flex-col gap-2">
+                        {achievements.map((achieve, index) => (
+                          <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <input
+                              type="text"
+                              placeholder="Title"
+                              value={achieve.title}
+                              onChange={(e) => {
+                                const updated = [...achievements];
+                                updated[index].title = e.target.value;
+                                setAchievements(updated);
+                              }}
+                              className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Year"
+                              value={achieve.year}
+                              onChange={(e) => {
+                                const updated = [...achievements];
+                                updated[index].year = e.target.value;
+                                setAchievements(updated);
+                              }}
+                              className="w-full sm:w-24 border border-gray-300 rounded px-2 py-1 text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = achievements.filter((_, i) => i !== index);
+                                setAchievements(updated);
+                              }}
+                              className="text-red-500 text-sm"
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        ))}
 
-    {/* Add New Achievement */}
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
-      <input
-        type="text"
-        placeholder="Title"
-        value={newAchievement.title}
-        onChange={(e) => setNewAchievement({ ...newAchievement, title: e.target.value })}
-        className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm"
-      />
-      <input
-        type="text"
-        placeholder="Year"
-        value={newAchievement.year}
-        onChange={(e) => setNewAchievement({ ...newAchievement, year: e.target.value })}
-        className="w-full sm:w-24 border border-gray-300 rounded px-2 py-1 text-sm"
-      />
-      <button
-        type="button"
-        onClick={() => {
-          if (newAchievement.title && newAchievement.year) {
-            setAchievements([...achievements, newAchievement]);
-            setNewAchievement({ title: '', year: '' });
-          }
-        }}
-        className="bg-green-500 text-white text-sm px-3 py-1 rounded hover:bg-green-600 transition"
-      >
-        Add
-      </button>
-    </div>
-  </div>
-</div>
+                        {/* Add New Achievement */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
+                          <input
+                            type="text"
+                            placeholder="Title"
+                            value={newAchievement.title}
+                            onChange={(e) => setNewAchievement({ ...newAchievement, title: e.target.value })}
+                            className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Year"
+                            value={newAchievement.year}
+                            onChange={(e) => setNewAchievement({ ...newAchievement, year: e.target.value })}
+                            className="w-full sm:w-24 border border-gray-300 rounded px-2 py-1 text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (newAchievement.title && newAchievement.year) {
+                                setAchievements([...achievements, newAchievement]);
+                                setNewAchievement({ title: '', year: '' });
+                              }
+                            }}
+                            className="bg-green-500 text-white text-sm px-3 py-1 rounded hover:bg-green-600 transition"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
+                    </div>
 
                   </div>
 
@@ -572,12 +663,12 @@ const ProfilePage = () => {
                     <motion.div
                       key={index}
                       whileHover={{ scale: 1.05 }}
-                      className="bg-gray-200 p-4 rounded-xl shadow-md flex items-center gap-4"
+                      className="bg-gray-200 p-4 rounded-xl shadow-md flex items-center gap-4 cursor-pointer"
                     >
-                      <img src={community.image} alt={community.name} className="w-16 h-16 rounded-full" />
+                      <img src={`http://localhost:5000/${community.avatar.replace(/\\/g, '/').replace('public/', '')}`} alt={community.name} className="w-16 h-16 rounded-full" />
                       <div>
                         <h4 className="text-lg font-semibold">{community.name}</h4>
-                        <p className="text-gray-600">{community.members} Members</p>
+                        <p className="text-gray-600">{community.sport}</p>
                       </div>
                     </motion.div>
                   ))
@@ -591,36 +682,104 @@ const ProfilePage = () => {
             </div>
           )}
 
-          {selectedTab === "coaches" && (
+          {(selectedTab === "coaches" || selectedTab === "trainees") && (
             <div>
-              <h3 className="text-xl font-semibold mb-4">My Coaches</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {profile.coaches.length > 0 ? (
-                  profile.coaches.map((coach, index) => (
-                    <motion.div
-                      key={index}
-                      whileHover={{ scale: 1.05 }}
-                      className="bg-gray-200 p-4 rounded-xl shadow-md flex flex-col justify-start items-center gap-4"
-                    >
-                      <img src={coach.image} alt={coach.name} className="w-16 h-16 rounded-full border-1" />
-                      <div className="flex flex-col justify-center items-center">
-                        <h4 className="text-lg font-semibold">{coach.name}</h4>
-                        <p className="text-gray-600">{coach.specialty}</p>
-                      </div>
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="text-center text-gray-500 col-span-full flex flex-col justify-ceter items-center gap-2">
-                    <p className="text-xl lg:text-2xl flex justify-center items-center gap-1">Explore Experts In Your Sports <GiAmericanFootballPlayer /> </p>
-                    <Link to='/coach' className="bg-blue-500 text-white w-fit px-3 py-2 rounded-lg shadow-md hover:bg-blue-600 transition">Get Coach</Link>
-                  </div>
-                )}
-              </div>
+              <h3 className="text-xl font-semibold mb-4">
+                {profile.role === "Coach" ? "My Trainees" : "My Coaches"}
+              </h3>
+
+              {/* Determine the data list */}
+              {(() => {
+                const dataList = profile.role === "Coach" ? profile.players : profile.coaches;
+                const isCoachTab = selectedTab === "coaches";
+
+                if (dataList && dataList.length > 0) {
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {dataList.map((person, index) => (
+                        <motion.div
+                          key={index}
+                          whileHover={{ scale: 1.05 }}
+                          className="bg-gray-200 p-4 rounded-xl shadow-md flex flex-col justify-start items-center gap-4 cursor-pointer"
+                        >
+                          <img
+                            src={`http://localhost:5000/${person.profileId.avatar.replace(/\\/g, '/').replace('public/', '')}`}
+                            alt={person.name}
+                            className="w-16 h-16 rounded-full border-1"
+                          />
+                          <div className="flex flex-col justify-center items-center">
+                            <h4 className="text-lg font-semibold">{person.profileId.name}</h4>
+                            <p className="text-gray-600">
+                              {person.profileId.sports[0] || "No info"}
+                            </p>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="flex flex-col items-center justify-center bg-gray-100 p-10 rounded-xl shadow-inner">
+                      <p className="text-gray-600 text-lg mb-4">
+                        {isCoachTab ? "Explore Coaches" : "Mentor Players"}
+                      </p>
+                      <Link to='/coach'>
+                        <button className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all shadow-md">
+                          {isCoachTab ? "Hire Coach" : "Train Players"}
+                        </button>
+                      </Link>
+                    </div>
+                  );
+                }
+              })()}
             </div>
           )}
+
+
+
         </motion.div>
 
       </div>
+
+      {showFollowListModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm max-h-[80vh] shadow-xl p-5 relative overflow-y-auto rounded-xl">
+                <h3 className="text-xl font-semibold mb-4 text-center">{followListTitle}</h3>
+                <button
+                    onClick={() => setShowFollowListModal(false)}
+                    className="absolute top-3 right-3 text-gray-400 hover:text-gray-800 text-2xl"
+                >
+                    &times;
+                </button>
+                <div className="space-y-3 mt-4">
+                    {followListData.length > 0 ? (
+                        followListData.map((user) => (
+                            <div
+                                key={user.userId}
+                                onClick={() => handleUserItemClick(user.userId)}
+                                className="flex items-center gap-4 p-2 rounded-lg hover:bg-gray-100 cursor-pointer transition"
+                            >
+                                <img
+                                    src={`http://localhost:5000/${user.avatar.replace(/\\/g, '/').replace('public/', '')}`}
+                                    alt={user.name}
+                                    className="w-12 h-12 rounded-full object-cover"
+                                />
+                                <p className="font-semibold text-gray-800">{user.name}</p>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-gray-500 text-center py-4">No users to display.</p>
+                    )}
+                </div>
+            </div>
+        </div>
+      )}
+
+      <ProfileViewModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        userId={selectedUserIdForModal}
+      />
     </div>
   );
 };

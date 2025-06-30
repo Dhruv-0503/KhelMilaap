@@ -14,6 +14,9 @@ const CommunitySchema = new mongoose.Schema(
         description: {
             type: String
         },
+        sport: {
+            type: String
+        },
         leader: {
             type: mongoose.Schema.Types.ObjectId, 
             ref: 'Users',

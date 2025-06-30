@@ -44,6 +44,12 @@ const AuthPage = () => {
                 localStorage.setItem('token', res.data.token);
                 localStorage.setItem('userId', res.data.userId);
                 localStorage.setItem('profileId', res.data.profileId);
+
+                // Fetch profile and store in localStorage before navigating
+                const profileRes = await axios.get(`/users/profile/${res.data.userId}`);
+                localStorage.setItem('profile', JSON.stringify(profileRes.data));
+                localStorage.setItem('avatar', profileRes.data.avatar);
+
                 navigate('/profile');
             }
         } catch (err) {

@@ -13,10 +13,14 @@ const profileControl = {
             const requesterId = req.user?.id; // You should have this from auth middleware
 
             const profile = await UserProfile.findOne({ userId })
-                .populate('communities', 'name avatar')
+                .populate('communities', 'name avatar sport')
                 .populate({
                     path: 'coaches',
-                    select: 'name avatar'
+                    select: 'profileId',
+                    populate: {
+                        path: 'profileId',
+                        select: 'name avatar sports'
+                    }
                 })
                 .populate({
                     path: 'following',
@@ -25,6 +29,14 @@ const profileControl = {
                 .populate({
                     path: 'followers',
                     select: 'name avatar'
+                })
+                .populate({
+                    path: 'players',
+                    select: 'profileId',
+                    populate: {
+                        path: 'profileId',
+                        select: 'name avatar sports'
+                    }
                 });
 
             if (!profile) return res.status(404).json({ message: 'Profile not found' });
@@ -33,7 +45,7 @@ const profileControl = {
 
             // 🧠 Hide sensitive stuff if profile is private and requester is not the owner
             const isOwner = requesterId === String(profile.userId);
-            if (!profile.isPublic && !isOwner) {
+            if (profile.status && isOwner) {
                 delete result.communities;
                 delete result.coaches;
                 delete result.posts; // Assuming you link posts somewhere
@@ -63,8 +75,14 @@ const profileControl = {
                     facebook,
                     instagram,
                     twitter,
+                    experience,
+                    fees,
+                    status,
                     achievements
                 } = req.body;
+                const parsedSports = sports
+                    ? (typeof sports === 'string' ? JSON.parse(sports) : sports)
+                    : [];
 
                 // Parse achievements to array if it's a string
                 const parsedAchievements = achievements ? JSON.parse(achievements) : [];
@@ -82,7 +100,7 @@ const profileControl = {
                 if (name) updates.name = name;
                 if (bio) updates.bio = bio;
                 if (location) updates.location = location;
-                if (sports && Array.isArray(sports)) updates.sports = sports;
+                if (parsedSports && Array.isArray(parsedSports)) updates.sports = parsedSports;
 
                 // Handle social links
                 const socialLinks = {};
@@ -95,6 +113,15 @@ const profileControl = {
                 if (parsedAchievements && Array.isArray(parsedAchievements)) {
                     const updatedAchievements = [...userProfile.achievements, ...parsedAchievements];
                     updates.achievements = updatedAchievements;
+                }
+
+                // If experience and fees are provided, add them to the update object
+                if (experience) updates.experience = experience;
+                if (fees) updates.fees = fees;
+
+                // Set the status as true if 'Yes' is received, else false
+                if (status) {
+                    updates.status = status === 'Yes' ? true : false;
                 }
 
                 // If an avatar is uploaded, add it to the updates object
@@ -204,6 +231,8 @@ const profileControl = {
             const { targetUserId } = req.body;
             const userId = req.user.id;
 
+            console.log('buildConnection called with:', { userId, targetUserId });
+
             if (userId === targetUserId) {
                 return res.status(400).json({ message: 'You cannot follow yourself' });
             }
@@ -215,26 +244,44 @@ const profileControl = {
                 return res.status(404).json({ message: 'One or both users not found' });
             }
 
-            const isFollowing = userProfile.following?.includes(targetUserId);
+            // Initialize arrays if they don't exist
+            if (!userProfile.following) userProfile.following = [];
+            if (!targetProfile.followers) targetProfile.followers = [];
+
+            // Check if already following by userId
+            const isFollowing = userProfile.following.some(following => following.userId.toString() === targetUserId.toString());
 
             if (isFollowing) {
-                // Unfollow Logic
-                userProfile.following.pull(targetUserId);
-                targetProfile.followers.pull(userId);
+                // Unfollow Logic - remove by userId
+                userProfile.following = userProfile.following.filter(following => following.userId.toString() !== targetUserId.toString());
+                targetProfile.followers = targetProfile.followers.filter(follower => follower.userId.toString() !== userId.toString());
                 await userProfile.save();
                 await targetProfile.save();
                 return res.status(200).json({ message: 'Unfollowed successfully' });
             }
 
-            // Follow Logic
-            userProfile.following.push(targetUserId);
-            targetProfile.followers.push(userId);
+            // Follow Logic - add complete user info
+            const userInfo = {
+                userId: userId,
+                name: userProfile.name,
+                avatar: userProfile.avatar
+            };
+
+            const targetInfo = {
+                userId: targetUserId,
+                name: targetProfile.name,
+                avatar: targetProfile.avatar
+            };
+
+            userProfile.following.push(targetInfo);
+            targetProfile.followers.push(userInfo);
             await userProfile.save();
             await targetProfile.save();
 
             res.status(200).json({ message: 'Followed successfully' });
         }
         catch (error) {
+            console.error('BuildConnection error:', error);
             res.status(500).json({ message: 'Server error', error: error.message });
         }
     },
@@ -285,7 +332,51 @@ const profileControl = {
         catch (error) {
             res.status(500).json({ message: 'Server error', error: error.message });
         }
-    }
+    },
+    searchPlayers: async (req, res) => {
+        try {
+            const { name } = req.query;
+            const currentUserId = req.user?.id; // Get current user ID from auth middleware
+            
+            console.log('Searching for:', name, 'by user:', currentUserId);
+            
+            if (!name) {
+                return res.status(400).json({ message: 'Name is required' });
+            }
+            
+            const players = await UserProfile.find({
+                role: 'Player',
+                name: { $regex: name, $options: 'i' }
+            }).select('name avatar userId role');
+            
+            // If user is authenticated, check follow status for each player
+            if (currentUserId) {
+                const currentUserProfile = await UserProfile.findOne({ userId: currentUserId });
+                if (currentUserProfile && currentUserProfile.following) {
+                    const followingUserIds = currentUserProfile.following.map(following => following.userId.toString());
+                    
+                    // Add follow status to each player
+                    const playersWithFollowStatus = players.map(player => ({
+                        ...player.toObject(),
+                        isFollowing: followingUserIds.includes(player.userId.toString())
+                    }));
+                    
+                    return res.status(200).json({ players: playersWithFollowStatus });
+                }
+            }
+            
+            // If not authenticated, return players without follow status
+            const playersWithoutFollowStatus = players.map(player => ({
+                ...player.toObject(),
+                isFollowing: false
+            }));
+            
+            res.status(200).json({ players: playersWithoutFollowStatus });
+        } catch (error) {
+            console.error('SearchPlayers error:', error);
+            res.status(500).json({ message: 'Server error', error: error.message });
+        }
+    },
 
 }
 module.exports = profileControl;

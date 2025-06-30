@@ -30,7 +30,9 @@ router.post('/join', authMiddleware, communityControl.joinCommunity);
 router.post('/leave', authMiddleware, communityControl.leaveCommunity);
 
 // Community Details and Messages
+router.get('/getcomm', communityControl.getAllCommunities);
 router.get('/:communityId', communityControl.getCommunityDetails);
+
 
 // Community Update and Delete
 //router.put('/community/:communityId', authMiddleware, communityControl.updateCommunity);

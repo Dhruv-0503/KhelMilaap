@@ -116,7 +116,7 @@ export const AnimatedTestimonials = ({autoplay = false }) => {
                         transition={{ duration: 0.2, ease: "easeInOut" }}
                     >
                         <h3 className="text-[35px] font-bold font-roboto text-gray-900 dark:text-white">{testimonials[active].name}</h3>
-                        <p className="font-roboto text-base text-gray-900 dark:text-neutral-500">{testimonials[active].designation}</p>
+                        <p className="font-roboto text-base text-gray-900 dark:text-neutral-400">{testimonials[active].designation}</p>
                         <motion.p className="text-[18px] text-gray-300 mt-8 dark:text-neutral-300">
                             {testimonials[active].quote.split(" ").map((word, index) => (
                                 <motion.span

@@ -49,13 +49,21 @@ const userProfileSchema = new mongoose.Schema(
               }
             }
         ],
-        isPublic: {
+        status: {
             type: Boolean,
             default: true
         },
         location: {
             type: String,
             default : "India"
+        },
+        fees: {
+            type : Number,
+            default : 0
+        },
+        experience: {
+            type: Number,
+            default: 0
         },
         socialLinks: {
             facebook: { type: String, default: "https://facebook.com/default" },
@@ -64,14 +72,34 @@ const userProfileSchema = new mongoose.Schema(
         },
         followers: [
             {
-                type: mongoose.Schema.Types.ObjectId, 
-                ref: 'Users'
+                userId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: 'Users'
+                },
+                name: {
+                    type: String,
+                    required: true
+                },
+                avatar: {
+                    type: String,
+                    default: "/assets/images/testinomial1.jpg"
+                }
             }
         ],
         following: [
             {
-                type: mongoose.Schema.Types.ObjectId, 
-                ref: 'Users'
+                userId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: 'Users'
+                },
+                name: {
+                    type: String,
+                    required: true
+                },
+                avatar: {
+                    type: String,
+                    default: "/assets/images/testinomial1.jpg"
+                }
             }
         ],
         communities: [

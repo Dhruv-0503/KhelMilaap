@@ -12,21 +12,26 @@ const Header = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false); // Default to false
   const dropdownRef = useRef(null);
   const location = useLocation();
+  
+  const [avatarUrl, setAvatarUrl] = useState('/default-avatar.png');
+  useEffect(() => {
+    // Check for a valid token in localStorage to determine if the user is logged in
+    const userAuthToken = localStorage.getItem('token'); // Assuming 'token' is the key you set during login
+    setIsLoggedIn(!!userAuthToken);
+
+    const storedAvatar = localStorage.getItem('avatar');
+    if (storedAvatar) {
+      const formattedAvatar = `http://localhost:5000/${storedAvatar.replace(/\\/g, '/').replace('public/', '')}`;
+      setAvatarUrl(formattedAvatar);
+    } else {
+      setAvatarUrl('/default-avatar.png');
+    }
+  }, [location]);
+
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
   };
-
-  // Check if the user is logged in (on component mount)
-  useEffect(() => {
-    // Check for a valid token in localStorage to determine if the user is logged in
-    const userAuthToken = localStorage.getItem('token'); // Assuming 'token' is the key you set during login
-    if (userAuthToken) {
-      setIsLoggedIn(true); // User is logged in
-    } else {
-      setIsLoggedIn(false); // User is not logged in
-    }
-  }, []);
 
   const isActive = (path) => location.pathname === path;
 
@@ -35,12 +40,24 @@ const Header = () => {
     setIsOpen(false);
   };
 
-  const isLoginPage = location.pathname === "/login"; // Check if on the login page
+  const isLoginPage = location.pathname === "/login";
+
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
 
   return (
     <>
       <nav className="bg-gray-100 sticky top-0 w-full overflow-x-hidden z-500 shadow-lg font-roboto px-4 py-3 flex justify-between items-center gap-8 text-black transition-all duration-500 hover:border-indigo-500">
-        <Link to='/' className="text-3xl hover:text-gray-600 cursor-pointer font-rowdies tracking-wide flex-1">KHELMILAAP</Link>
+        <Link to='/' className="text-3xl hover:text-gray-600 cursor-pointer font-michroma tracking-wide flex-1">KhelMilaap</Link>
 
         {/* Hide links if on the login page */}
         {!isLoginPage && (
@@ -70,9 +87,9 @@ const Header = () => {
           isLoggedIn ? (
             <Link to='/profile'>
               <img
-                src="/assets/images/testinomial1.jpg"// Replace with user profile image URL
+                src={avatarUrl}
                 alt="Profile"
-                className="hidden md:block w-10 h-10 rounded-full border-2 border-indigo-500 cursor-pointer"
+                className="hidden md:block w-10 h-10 rounded-full border-2 border-indigo-500 cursor-pointer object-cover"
               />
             </Link>
           ) : (
@@ -81,6 +98,8 @@ const Header = () => {
             </InteractiveHoverButton>
           )
         )}
+
+
 
         {/* Menu Icon */}
         <div className="nav-menu md:hidden">
