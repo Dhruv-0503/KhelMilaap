@@ -1,4 +1,7 @@
-# KhelMilaap
+# KhelMilaap | [![YouTube](https://img.shields.io/badge/YouTube-red?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/@dhruvpatel0503)
+
+
+
 
 KhelMilaap is a dynamic and interactive full-stack web application designed to bridge the gap between sports enthusiasts, players, and coaches. It provides a centralized platform for users to connect, form communities, chat in real-time, and discover sporting events and coaching opportunities.
 
